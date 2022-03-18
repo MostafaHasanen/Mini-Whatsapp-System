@@ -1,1631 +1,415 @@
-MAIN
-___________________________
-#include<iostream>
-#include<fstream>
-#include<unordered_map>
-#include<vector>
-#include<string>
-#include<windows.h>
-#include<tchar.h>
-#include<mmsystem.h>
-#include"WhatsappClasses.h"
-#pragma comment(lib, "winmm.lib")
-using namespace std;
- 
-vector<User> allusers;
-vector<GroupChat>allgroups;
-vector<PrivateChat>allprvchats;
-unordered_map<string, vector<pair<string, string>>>users_contacts;
-unordered_map<string, vector<pair<string, int>>>users_chats;
-User currentuser;
-string name, number, pass;
- 
-void Read_Data();
-void Save_Data();
-void displaychatlist();
-void mainmenu();
-void afterlogin_menu();
-void login();
-void logout();
-void Register();
-bool recursiveregist();
-int main()
-{
-	Read_Data();
-	cout << endl << endl << endl << endl << endl
-		<< "           Whatsapp             "
-		<< endl << endl << endl << endl << endl;
-	system("pause");
-	system("cls");
-	mainmenu();
-}
-void displaychatlist()
-{
- 
-	int index = 0;
-	int msgcount = 0;
-	bool firsttime = true;
-	bool play_sound = true;
-	string number, group_name;
- 
-	vector<pair<string, int>> chats_to_be_traversed;
-	vector<pair<string, string>> contacts_to_be_traversed;
- 
-	chats_to_be_traversed = users_chats[currentuser.Mob_num];
-	contacts_to_be_traversed = users_contacts[currentuser.Mob_num];
- 
-	for (int i = 0; i < chats_to_be_traversed.size(); i++)
-	{
-		if (chats_to_be_traversed[i].first.find("ID") != -1)
-		{
-			if (chats_to_be_traversed[i].second == -1)
-			{
-				for (int j = 0; j < allgroups.size(); j++)
-				{
-					if (chats_to_be_traversed[i].first == allgroups[j].ID)
-					{
-						group_name = allgroups[j].groupname;
-					}
-				}
-				cout << "You've been removed from " << group_name << "." << endl;
-			}
-			else
-			{
-				index = chats_to_be_traversed[i].second;
-				queue<Messages>tmp = allgroups[index].chathistory;
-				while (!tmp.empty())
-				{
-					if (tmp.front().read == false && tmp.front().owner != currentuser.Mob_num)
-					{
-						msgcount++;
-						tmp.pop();
-					}
-					else
-						tmp.pop();
- 
-				}
-				cout << allgroups[index].groupname << " " << "(" << msgcount << ")" << endl;
-				msgcount = 0;
-			}
-		}
-		else
-		{
-			number = chats_to_be_traversed[i].first;
-			index = chats_to_be_traversed[i].second;
-			queue<Messages>tmp = allprvchats[index].chathistory;
- 
-			while (!tmp.empty())
-			{
-				if (tmp.front().read == false && tmp.front().owner != currentuser.Mob_num)
-				{
-					msgcount++;
-					tmp.pop();
-				}
-				else
-					tmp.pop();
-			}
- 
-			if (msgcount > 0 && play_sound == true)
-			{
-				PlaySound(TEXT("notification.wav"), NULL, SND_FILENAME);
-				play_sound = false;
-			}
-			int j = 0;
-			while (j < contacts_to_be_traversed.size())
-			{
-				if (number == contacts_to_be_traversed[j].first)
-				{
-					cout << contacts_to_be_traversed[j].second << " " << "(" << msgcount << ")" << endl;
-					firsttime = false;
-					break;
-				}
-				j++;
-			}
-			if (firsttime == true)
-			{
-				cout << number << " " << "(" << msgcount << ")" << endl;
- 
-			}
-			msgcount = 0;
-			firsttime = true;
-		}
-	}
-}
-void mainmenu()
-{
-	cout << "*******************" << endl << "Welcome to whatsapp"
-		<< endl << "*******************" << endl;
-	cout << "1-Login" << endl << "2-Register" << endl << "3-Exit" << endl << endl;
-	cout << "Choice : ";
-	int choice;
-	cin >> choice;
-	cout << endl;
-	if (cin.fail() || choice > 3 || choice <= 0)
-	{
-		cout << "Wrong entry.Retry";
-		system("pause");
-		system("cls");
-		cin.clear();
-		cin.ignore();
-		mainmenu();
-	}
-	else
-	{
-		if (choice == 1)
-			login();
-		else if (choice == 2)
-		{
-			if (recursiveregist())
-			{
-				Register();
-			}
-		}
-		else if (choice == 3)
-		{
-			Save_Data();
-			exit(0);
-		}
-	}
- 
-}
- 
-void afterlogin_menu()
-{
-	system("cls");
-	cout << "Welcome " << currentuser.username << endl;
-	cout << "__________________________" << endl;
-	cout << "Chats : " << endl << "__________________________" << endl;
-	if (users_chats[currentuser.Mob_num].empty())
-	{
-		cout << "No chats yet." << endl;
-	}
-	else
-	   displaychatlist();
-	cout << "__________________________" << endl << "Options :- " << endl << endl;
-	cout << "1-Search." << endl << "2-Add Contact." << endl << "3-Remove Contact." << endl
-		<< "4-Create group." << endl << "5-View Contacts" << endl << "6-Logout." << endl << endl << "Choice : ";
- 
-	int option;
-	cin >> option;
-	if (option > 6 || cin.fail() || option <= 0)
-	{
-		cout << "Wrong entry.Retry";
-		system("pause");
-		system("cls");
-		cin.clear();
-		cin.ignore();
-		afterlogin_menu();
-	}
-	else
-	{
-		if (option == 1)
-		{
-			system("cls");
-			currentuser.Search(allgroups, users_chats, users_contacts, allprvchats);
-			afterlogin_menu();
-		}
-		else if (option == 2)
-		{
-			system("cls");
-			currentuser.AddContact(users_contacts, allprvchats, users_chats, allusers);
-			system("pause");
-			system("cls");
-			afterlogin_menu();
- 
-		}
-		else if (option == 3)
-		{
-			system("cls");
-			currentuser.view_contacts();
-			cout << "Enter name : ";
-			string toberemoved;
-			cin.ignore();
-			getline(cin, toberemoved);
-			currentuser.RemoveContact(toberemoved, users_contacts, users_chats, allprvchats);
-			cout << "Contact has been removed." << endl;
-			system("pause");
-			system("cls");
-			afterlogin_menu();
-		}
-		else if (option == 4)
-		{
-			system("cls");
-			currentuser.CreateGroup(allgroups, users_chats);
-			system("pause");
-			system("cls");
-			afterlogin_menu();
-		}
-		else if (option == 5)
-		{
-			system("cls");
-			currentuser.view_contacts();
-			system("pause");
-			system("cls");
-			afterlogin_menu();
-		}
-		else if (option == 6)
-		{
-			system("cls");
-			logout();
-		}
-	}
-}
-void login()
-{
-	int choice;
-	bool fail = true;
-	cin.ignore();
-	cout << "Enter Username: ";
-	getline(cin, name);
-	for (User t : allusers) {
-		if (name == t.username) {
-			while (true) {
-				cout << "Enter Password: ";
-				cin >> pass;
-				if (pass == t.password) {
-					currentuser = t;
-					currentuser.retrieve_contacts(users_contacts);
-					afterlogin_menu();
-					fail = false;
-					break;
-				}
-				else {
-					cout << "Incorrect Password! Please try again" << endl << "1-Exit." << endl << "2-Retry" << endl;
-					cin >> choice;
-					if (choice == 1) {
-						system("cls");
-						mainmenu();
-					}
-					else
-						continue;
-				}
-			}
- 
-		}
-	}
-	if (fail == true) {
-		cout << "Username doesn't exist! "<< endl << "1-Exit." << endl << "2-Retry" << endl;
-		cin >> choice;
-		if (choice == 1) {
-			system("cls");
-			mainmenu();
-		}
-		else
-			login();
-	}
- 
-}
-void logout()
-{
-	mainmenu();
-}
-void Register()
-{
-	cout << "Enter Your Password: ";
-	getline(cin, pass);
-	User newcomer;
-	newcomer.username = name;
-	newcomer.password = pass;
-	newcomer.Mob_num = number;
-	allusers.push_back(newcomer);
-	vector<pair<string, string>> new_user_contacts;
-	users_contacts.insert(make_pair(name, new_user_contacts));
-	currentuser = newcomer;
-	afterlogin_menu();
-}
-bool recursiveregist()
-{
-	string choice;
-	cout << "Enter your new Username: ";
-	cin.ignore();
-	getline(cin, name);
-	cout << "Enter your Number: ";
-	cin >> number;
-	for (User it : allusers)
-	{
-		if (it.username == name)
-		{
-			cout << "Username already used" << endl << "1-Exit." << endl << "2-Retry" << endl;
-			cin >> choice;
-			if (choice == "1")
-			{
-				system("cls");
-				mainmenu();
-			}
-			else
-			{
-				if (!recursiveregist())
-					return false;
-				break;
-			}
-		}
-		if (it.Mob_num == number)
-		{
-			cout << "Contact already used" << endl << "1-Exit." << endl << "2-Retry" << endl;
-			cin >> choice;
-			if (choice == "1")
-			{
-				system("cls");
-				mainmenu();
-			}
-			else
-			{
-				if (!recursiveregist())
-					return false;
-				break;
- 
-			}
-		}
- 
-	}
-	return true;
-}
-void Read_Data()
-{
-	string code = "for(int i)";
-	//read all users
-	//***********************************************************
-	ifstream Userfile;
-	User userdata;
-	Userfile.open("All user data.txt");
-	if (Userfile.fail())
-	{
-		cout << "File (All user data) not found of corrupted ,check the file and try again." << endl;
-		cout << "Program will terminate." << endl;
-		exit(1);
-	}
-	else
-	{
-		for (int i = 0; !Userfile.eof(); i++)
-		{
-			getline(Userfile, userdata.username);
-			getline(Userfile, userdata.password);
-			getline(Userfile, userdata.Mob_num);
-			allusers.push_back(userdata);
-		}
-	}
-	//***************************************************
-	//read all privateee chats
- 
-	ifstream prvtchats;
-	PrivateChat pchat_data;
-	Messages Single_mssg;
-	queue<Messages> All_mssgs;
-	prvtchats.open("All Private chats.txt");
-	if (prvtchats.fail())
-	{
-		cout << "File (All Private chats) not found of corrupted ,check the file and try again." << endl;
-		cout << "Program will terminate." << endl;
-		exit(1);
-	}
-	else
-	{
-		for (int i = 0; !prvtchats.eof(); i++)
-		{
-			getline(prvtchats, pchat_data.num1);
-			getline(prvtchats, pchat_data.num2);
-			while (true)
-			{
-				getline(prvtchats, Single_mssg.mssg);
-				if (Single_mssg.mssg == code)
-				{
-					break;
-				}
-				else
-				{
-					getline(prvtchats, Single_mssg.owner);
-					prvtchats >> Single_mssg.read;
-					prvtchats.ignore();
-					All_mssgs.push(Single_mssg);
-				}
-			}
-			pchat_data.chathistory = All_mssgs;
-			allprvchats.push_back(pchat_data);
-			for (int i = 0; !All_mssgs.empty(); i++)
-			{
-				All_mssgs.pop();
-			}
-		}
-	}
-	//*****************************************************************
-	//read all group chats
- 
-	ifstream groupchats;
-	GroupChat gchat_data;
-	string member;
-	groupchats.open("All Group chats.txt");
-	if (groupchats.fail())
-	{
-		cout << "File (All Group chats) not found of corrupted ,check the file and try again." << endl;
-		cout << "Program will terminate." << endl;
-		exit(1);
-	}
-	else
-	{
-		for (int i = 0; !groupchats.eof(); i++)
-		{
-			getline(groupchats, gchat_data.groupname);
-			getline(groupchats, gchat_data.ID);
-			getline(groupchats, gchat_data.admin);
-			while (true)
-			{
-				getline(groupchats, member);
-				if (member == "Stop reading members")
-				{
-					break;
-				}
-				else
-				{
-					gchat_data.members.push_back(member);
-				}
-			}
-			while (true)
-			{
-				getline(groupchats, Single_mssg.mssg);
-				if (Single_mssg.mssg == code)
-				{
-					break;
-				}
-				else
-				{
-					getline(groupchats, Single_mssg.owner);
-					groupchats >> Single_mssg.read;
-					groupchats.ignore();
-					All_mssgs.push(Single_mssg);
-				}
-			}
-			gchat_data.chathistory = All_mssgs;
-			allgroups.push_back(gchat_data);
-			for (int i = 0; !All_mssgs.empty(); i++)
-			{
-				All_mssgs.pop();
-			}
-		}
-	}
-	//*****************************************************************
-	//read all user contacts 
-	ifstream contact_data;
-	string usernum, contact_num, contact_name;
-	vector<pair<string, string>>contacts;
-	contact_data.open("All users contacts.txt");
-	if (contact_data.fail())
-	{
-		cout << "File (All users contacts) not found of corrupted ,check the file and try again." << endl;
-		cout << "Program will terminate." << endl;
-		exit(1);
-	}
-	else
-	{
-		for (int i = 0; !contact_data.eof(); i++)
-		{
-			getline(contact_data, usernum);    //key
-			while (true)
-			{
-				getline(contact_data, contact_name);      //pair.second
-				if (contact_name == code)
-				{
-					break;
-				}
-				else
-				{
-					getline(contact_data, contact_num);  //pair.first
-					contacts.push_back(make_pair(contact_num, contact_name));
-				}
-			}
-			users_contacts[usernum] = contacts;
-			contacts.clear();
-		}
-	}
-	//*************************************************************************
-	//read all user chats
- 
-	ifstream chat_data;
-	string num_or_id;
-	int index;
- 
-	vector<pair<string, int>>chat_index;
-	chat_data.open("All users chats.txt");
-	if (chat_data.fail())
-	{
-		cout << "File (All users chats) not found of corrupted ,check the file and try again." << endl;
-		cout << "Program will terminate." << endl;
-		exit(1);
-	}
-	else
-	{
-		for (int i = 0; !chat_data.eof(); i++)
-		{
-			getline(chat_data, usernum);    //key
-			while (true)
-			{
-				getline(chat_data, num_or_id);      //pair.second
-				if (num_or_id == code)
-				{
-					break;
-				}
-				else
-				{
-					chat_data >> index;  //pair.first
-					chat_data.ignore();
-					chat_index.push_back(make_pair(num_or_id, index));
-				}
-			}
-			users_chats[usernum] = chat_index;
-			chat_index.clear();
-		}
-	}
- 
-}
-void Save_Data()
-{
-	//save all users data
-	//**************************************
-	ofstream Userfile;
-	Userfile.open("All user data.txt");
-	for (int i = 0; i < allusers.size(); i++)
-	{
-		Userfile << allusers[i].username << endl;
-		Userfile << allusers[i].password << endl;
-		Userfile << allusers[i].Mob_num << endl;
-	}
-	Userfile.close();
-	//*****************************************
-	//save all private chats
-	ofstream prvtchatfile;
-	Messages mssgs;
-	prvtchatfile.open("All Private chats.txt");
-	for (int i = 0; i < allprvchats.size(); i++)
-	{
-		prvtchatfile << allprvchats[i].num1 << endl;
-		prvtchatfile << allprvchats[i].num2 << endl;
-		for (int j = 0; !allprvchats[i].chathistory.empty(); j++)
-		{
-			mssgs = allprvchats[i].chathistory.front();
-			prvtchatfile << mssgs.mssg << endl;
-			prvtchatfile << mssgs.owner << endl;
-			prvtchatfile << mssgs.read << endl;
-			allprvchats[i].chathistory.pop();
-		}
-		prvtchatfile << "for(int i)" << endl;
-	}
-	//***********************************************
-	//save all group chats
-	ofstream groupchatfile;
-	groupchatfile.open("All Group chats1.txt");
-	for (int i = 0; i < allgroups.size(); i++)
-	{
-		groupchatfile << allgroups[i].groupname << endl;
-		groupchatfile << allgroups[i].ID << endl;
-		groupchatfile << allgroups[i].admin << endl;
-		for (int k = 0; k < allgroups[i].count_members(); k++)
-		{
-			groupchatfile << allgroups[i].members[k] << endl;
-		}
-		groupchatfile << "Stop reading members" << endl;
-		for (int j = 0; !allgroups[i].chathistory.empty(); j++)
-		{
-			mssgs = allgroups[i].chathistory.front();
-			groupchatfile << mssgs.mssg << endl;
-			groupchatfile << mssgs.owner << endl;
-			groupchatfile << mssgs.read << endl;
-			allgroups[i].chathistory.pop();
-		}
-		groupchatfile << "for(int i)" << endl;
-	}
-	//*********************************************************
-	//save all users contacts
-	unordered_map<string, vector<pair<string, string>>>::iterator it_contact = users_contacts.begin();
-	ofstream usercontactsfile;
-	usercontactsfile.open("All users contacts.txt");
-	for (it_contact; it_contact != users_contacts.end(); it_contact++)
-	{
-		usercontactsfile << it_contact->first << endl;
-		for (int i = 0; i < it_contact->second.size(); i++)
-		{
-			usercontactsfile << it_contact->second[i].second << endl;
-			usercontactsfile << it_contact->second[i].first << endl;
-		}
-		usercontactsfile << "for(int i)" << endl;
-	}
-	//********************************************************
-		//save all users chats
-	unordered_map<string, vector<pair<string, int>>>::iterator it_chat = users_chats.begin();
-	ofstream userchatfile;
-	userchatfile.open("All users chats.txt");
-	for (it_chat; it_chat != users_chats.end(); it_chat++)
-	{
-		userchatfile << it_chat->first << endl;
-		for (int i = 0; i < it_chat->second.size(); i++)
-		{
-			userchatfile << it_chat->second[i].first << endl;
-			userchatfile << it_chat->second[i].second << endl;
-		}
-		userchatfile << "for(int i)" << endl;
-	}
-}
-_____________________________________________________
-.H
-_____________________________________________________
+//File Containers.h
 #pragma once
-#include<vector>
-#include<map>
-#include<string>
-#include<queue>
-#include<unordered_map>
-using namespace std;
-class Messages
+#include <list>
+#include <map>
+#include <vector>
+#include <queue>
+
+class User
 {
+private:
+	vector<pair<string,Chat>>chat_list;
+	map<string, string> contact_list;
+	
+public:
+
+	string Mob_no;
+	string password;
+	string username;
+	User(string name, string pass, string contact);
+	User();
+	// ~User(); m4 h3mlo 3l4an lw d5l fn he4t8l m4 main
+	void DisplayAllChats();
+	void OpenChat(string Contact);
+	void mycontacts();
+	void retrivechat();
+	string Match(string name);
+	void addmsg();
+	void SearchContacts(string name);
+
+};
+
+class Chat{
+	string type;
+
+	string name1;
+	string name2;
+	
+	string group_name;
+	string admin; //sa7b al group
+	int Id; //contact aw ID
+	int NumOfMembers;
+	vector<string> members;
+
+	queue<messages> Msg;
+
+	Chat(string nm1,string nm2);
+
+	Chat(string GN, string Admin); //group
+	Chat(string GN, string Admin, int NoM, vector<string> people);
+	
+	void addmember(string user_name, string new_member);
+	void removemember(string user_name,string member_name);
+	void delchat();
+	~Chat();  //Save
+};
+
+/*class allusers {
+public:	
+	string name;
+	string pass;
+	int contact;
+	
+	void readdata();
+	void savedata();
+};*/
+
+class messages {
 public:
 	bool read;
 	string owner;
 	string mssg;
-	Messages();
-	Messages(string messg, string mssg_owner, bool seen);
- 
+
+	messages();
 };
-class PrivateChat
-{
-public:
-	string num1;
-	string num2;
-	queue<Messages> chathistory;
-	PrivateChat();
-	PrivateChat(string sender, string reciever);
-};
-class GroupChat
-{
-public:
-	string groupname;
-	string ID;
-	string admin;
-	vector<string> members;
-	queue<Messages> chathistory;
-	int count_members();
-	GroupChat();
-};
-class User
-{
-	vector<pair<string, string>> contact_list;
-public:
-	string password;
-	string username;
-	string Mob_num;
-	User();
-	void AddContact(unordered_map<string, vector<pair<string, string>>>& users_contacts,
-		vector<PrivateChat>& allprvchats, unordered_map<string, vector<pair<string, int>>>& users_chats, vector<User>& allusers);
- 
-	void RemoveContact(string name, unordered_map<string, vector<pair<string, string>>>& contmaptmp,
-		unordered_map<string, vector<pair<string, int>>>& chatmaptmp, vector<PrivateChat>& prvchats);
- 
-	void Search(vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats,
-		unordered_map<string, vector<pair<string, string>>>& users_contacts, vector<PrivateChat>& allprvchats);
- 
-	void openchat(vector<string>numbers, unordered_map<string, vector<pair<string, int>>>& users_chats,
-		unordered_map<string, vector<pair<string, string>>>& users_contacts, vector<PrivateChat>& allprvchats,
-		vector<GroupChat>& allgroups);
- 
-	void send_mssg(queue<Messages>temp, int chatindex, string type, vector<PrivateChat>& allprvchats, vector<GroupChat>& allgroups,
-		unordered_map<string, vector<pair<string, string>>>& users_contacts, unordered_map<string, vector<pair<string, int>>>& users_chats ,
-		string reciver);
- 
-	void CreateGroup(vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats);
- 
-	void add_participants(int chatindex, vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats);
- 
-	void editgroup(int chatindex, vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats);
- 
-	void retrieve_contacts(unordered_map<string, vector<pair<string, string>>> tmpmap);
- 
-	void deletegroup(int chatindex, vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats);
- 
-	string Number_to_Name(string number);
- 
-	void view_members(int chatindex, vector<GroupChat>& allgroups);
- 
-	void view_contacts();
- 
-};
-________________________________________________________________________________
-.CPP
-________________________________________________________________________________
-#include "WhatsappClasses.h"
-#include<iostream>
-#include<iostream>
-#include<string>
-#include<sstream>
-#include<time.h>
+
+
+
+**********************************************************************
+
+//File Containers.cpp
+#include "Containers.h"
+#include <iostream>
+#include <string>
+#include <map>
+
 using namespace std;
- 
-User::User()
-{
-	password = "";
-	username = "";
-	Mob_num = "";
+
+//User functions:
+
+User::User(string name, string pass, string contact) {
+	contact_list.insert(make_pair( "123", "Ambulance" ));
+	contact_list.insert(make_pair( "122", "Police" ));
+	contact_list.insert(make_pair( "125", "Fire Fighting & Civil Defense" ));
+	username = name;
+	password = pass;
+	Mob_no = contact;
+
 }
- 
-GroupChat::GroupChat()
-{
-	admin = "";
-	ID = "";
-	groupname = "";
+User::User(){
+	username = "Unknown";
+	Mob_no = "Unavailable";
 }
- 
-PrivateChat::PrivateChat()
-{
-	num1 = "";
-	num2 = "";
+
+void User::mycontacts() {
+	sort(contact_list.begin()->second, contact_list.end()->second); //mmkn ttms7 lw rowida 3amlaha
+	cout << "Contact List: " << endl;
+	for (pair<string,string>it:contact_list) {
+		cout << it->second <<"	"<<it->first << endl<<"=============================="<<endl;
+	}
 }
- 
-PrivateChat::PrivateChat(string sender, string reciever)
-{
-	num1 = sender;
-	num2 = reciever;
+
+void User::addmsg(){
+
 }
- 
-Messages::Messages()
-{
-	mssg = "";
-	owner = "";
-	read = 0;
-}
- 
-Messages::Messages(string messg, string mssg_owner, bool seen)
-{
-	mssg = messg;
-	owner = mssg_owner;
-	read = seen;
-}
- 
-void User::retrieve_contacts(unordered_map<string, vector<pair<string, string>>> tmpmap)
-{
-	contact_list = tmpmap[Mob_num];
-	sort(contact_list.begin(), contact_list.end(), [](auto& e1, auto& e2)
-		{
-			return e1.second < e2.second;
-		});
-}
- 
-void User::RemoveContact(string name, unordered_map<string, vector<pair<string, string>>>& contmaptmp,
-	unordered_map<string, vector<pair<string, int>>>& chatmaptmp, vector<PrivateChat>& prvchats)
-{
-	vector<pair<string, string>>tmp;
- 
-	vector<pair<string, int>>chatmap;
-	vector<pair<string, int>>::iterator chatit;
- 
-	vector<pair<string, string>>contmap;
-	vector<pair<string, string>>::iterator contit;
- 
-	int index = 0, vectorindex = 0;
-	string number, tobedel;
-	int contactchoice;
-	for (int i = 0; i < contact_list.size(); i++) //Get all contacts having that name
-	{
-		if (contact_list[i].second == name)
-		{
-			number = contact_list[i].first;
-			tmp.push_back(make_pair(name, number));
+
+void User::DisplayAllChats() {  //show all interface chat Name:Latest msg
+	for (pair<string, Chat> it : chat_list) {
+		if (username == it->name1) {
+			cout << it->name2 << endl;
+			cout <<"Message:"<< it->Msg.back().mssg;
+			if (it->Msg.back().read == false) {
+				cout << "**" << endl;
+			}
 		}
-	}
- 
-	cout << "Contacts found : " << endl;   //Displaying contacts found
-	for (int i = 0; i < tmp.size(); i++)
-	{
-		cout << i + 1 << "-" << tmp[i].first << "  " << tmp[i].second << endl;
-	}
- 
-	cin >> contactchoice;                 //Choosing from the contacts displayed
-	if (contactchoice > tmp.size() || cin.fail() || contactchoice <= 0)
-	{
-		cout << "Wrong entry.Retry";
-		system("pause");
-		system("cls");
-		cin.clear();
-		cin.ignore();
-		RemoveContact(name, contmaptmp, chatmaptmp, prvchats);
-	}
-	else
-	{
-		tobedel = tmp[contactchoice - 1].second; //number to be deleted is now chosen
-	}
- 
-	chatmap = chatmaptmp[Mob_num];                     //Deleting contact's chat history
-	for (chatit = chatmap.begin(); chatit != chatmap.end(); chatit++)
-	{
-		if (chatit->first == tobedel)
-		{
-			vectorindex = chatit->second;
-			chatmap.erase(chatit);
-			break;
-		}
-	}
-	chatmaptmp[Mob_num] = chatmap;
- 
-	chatmap = chatmaptmp[tobedel];                     //Deleting chat history from the contact to be deleted history
-	for (chatit = chatmap.begin(); chatit != chatmap.end(); chatit++)
-	{
-		if (chatit->first == Mob_num)
-		{
-			chatmap.erase(chatit);
-			break;
-		}
-	}
-	chatmaptmp[tobedel] = chatmap;
- 
-	prvchats[vectorindex].num1 = "";           //Deleting the chat from all private chats vector
-	prvchats[vectorindex].num2 = "";
-	while (!prvchats[vectorindex].chathistory.empty())
-		prvchats[vectorindex].chathistory.pop();
- 
-	contmap = contmaptmp[Mob_num];                     //Deleting contact from contact map
-	for (contit = contmap.begin(); contit != contmap.end(); contit++)
-	{
-		if (contit->first == tobedel)
-		{
-			contmap.erase(contit);
-			break;
-		}
-	}
-	contmaptmp[Mob_num] = contmap;
- 
-	for (contit = contact_list.begin(); contit != contact_list.end(); contit++) //Deleting contact from user's contact list
-	{
-		if (contit->first == tobedel)
-		{
-			contact_list.erase(contit);
-			break;
-		}
-	}
-	sort(contact_list.begin(), contact_list.end(), [](auto& e1, auto& e2)
-		{
-			return e1.second < e2.second;
-		});
-}
- 
-void User::editgroup(int chatindex, vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats)
-{
-	vector<string> contacts_found;
-	string name;
-	int ch, i = 0;
-	bool notfound = true;
-	cout << "Choose Option to edit group : " << endl << "1- add member " << endl << "2- remove member"
-		<< endl << " >> ";
-	cin >> ch;
-	while (true)
-	{
-		if (cin.fail() || ch > 2 || ch < 1)
-		{
-			cout << "Wrong entry please try again" << endl << endl;
-			cin >> ch;
+		else if (username == it->name2) {
+			cout << it->name1 << endl;
+			cout << "Message:" << it->Msg.back().mssg;
+			if (it->Msg.back().read == false) {
+				cout << "**" << endl;
+			}
 		}
 		else
 		{
-			break;
-		}
-	}
-	if (ch == 1) {
-		add_participants(chatindex, allgroups, users_chats);
-	}
-	if (ch == 2)
-	{
-		int cnt = 1;
-		vector< pair<string, string>>::iterator it = contact_list.begin();
-		for (it; it != contact_list.end(); it++)
-		{
- 
-			for (int i = 0; i < allgroups[chatindex].count_members(); i++)
-			{
-				if (it->first == allgroups[chatindex].members[i])
-				{
-					cout << cnt << "-" << it->second << "          " << it->first << endl;
-					notfound = false;
-					cnt++;
-					contacts_found.push_back(it->first);
-				}
+			cout << it->group_name << endl;
+			cout << "Message:" << it->Msg.back().mssg;
+			if (it->Msg.back().read == false) {
+				cout << "**" << endl;
 			}
-		}
-		if (notfound == true)
-		{
-			cout << " No members in the group " << endl;
-		}
-		else
-		{
-			cout << "Choose Contact to remove : ";
-			cin >> ch;
-			allgroups[chatindex].members.erase(find(allgroups[chatindex].members.begin(), allgroups[chatindex].members.end(), contacts_found[ch - 1]));
-			vector<pair<string, int>>mp = users_chats[contacts_found[ch - 1]];
-			vector<pair<string, int>>::iterator it = mp.begin();
-			for (it; it != mp.end(); it++)
-			{
-				if (it->second == chatindex)
-				{
-					it->second = -1;
-					break;
-				}
-			}
-			users_chats[contacts_found[ch - 1]] = mp;
-			cout << endl;
-			system("pause");
 		}
 	}
 }
- 
-void User::add_participants(int chatindex, vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats)
+
+void User::OpenChat(string Contact)
 {
-	vector<string> contacts_found;
-	string name;
-	int ch, i = 0, cnt = 1;
-	bool notfound = true;
-	bool already_member;
-	vector<pair<string, string>>::iterator it = contact_list.begin();
- 
-	for (it; it != contact_list.end(); it++)
-	{
-		already_member = false;
-		for (int i = 0; i < allgroups[chatindex].count_members(); i++)
-		{
-			if (it->first == allgroups[chatindex].members[i])
-			{
-				already_member = true;
-				break;
+	for (pair<string, Chat> it : chat_list) {
+		if (Contact == it->first) {
+			for (queue<messages> itt : it.Msg) {
+				itt->read = true;
+				cout <<itt->owner<<":"<<itt->mssg << endl;
 			}
 		}
-		if (!already_member)
-		{
-			cout << cnt << "-" << it->second << "	" << it->first << endl;
+	}
+}
+
+void User::retrivechat() { //get user's chat from all chats
+	
+}
+
+string User::Match(string name) {
+	string Contact;
+	for (pair<string, string> it : contact_list) {
+		if (name == it->second) {
+			Contact = it->first;
+		}
+	}
+
+	return Contact;
+}
+
+void User::SearchContacts(string name) {
+	int i = 0;
+	bool notfound=true;
+	vector<string> contacts_found;
+	for (pair<string,string> it : contact_list) {
+		
+		if (it->second == name) {
+			i++;
 			contacts_found.push_back(it->first);
 			notfound = false;
-			cnt++;
+			cout << i << "-" it->second << "	" << it->first << endl;
 		}
 	}
-	if (notfound == true)
-	{
-		cout << "No Contacts Found " << endl;
-		cout << endl;
-		system("pause");
- 
+	if (notfound == true) {
+		cout << "No Contact Found with this Name" << endl;
+	}
+	if (contacts_found.size() > 1) {
+		cout << "Choose which Contact: ";
+		int choice;
+		cin >> choice;
+		OpenChat(contacts_found[choice-1]);
+	}
+	else if (contacts_found.size == 1) {
+		OpenChat(contacts_found[0]);
+	}
+
+}
+
+//Group Functions :
+
+Chat::Chat(string nm1,string nm2) {
+	name1 = nm1;
+	name2 = nm2;
+	NumOfMembers = 2;
+}
+
+
+
+Chat::Chat(string GN, string Admin) {
+	group_name = GN;
+	admin = Admin;
+	NumOfMembers = 1;
+
+}
+
+Chat::Chat(string GN, string Admin, int NoM, vector<string> people) {
+	group_name = GN;
+	admin = Admin;
+	NumOfMembers = NoM;
+	members = people;
+}
+
+void Chat::addmember(string user_name,string new_member) {
+	
+	if (user_name == admin) {
+		members.push_back(new_member);
+		NumOfMembers++;
 	}
 	else
-	{
-		cout << "Choose Contact to add : ";
-		cin >> ch;
-		while (true)
-		{
-			if (cin.fail() || ch > contacts_found.size() || ch < 0)
-			{
-				cout << "Wrong entry please try again" << endl << endl;
- 
-				cin >> ch;
-			}
-			else
-			{
-				break;
-			}
-		}
-		allgroups[chatindex].members.push_back(contacts_found[ch - 1]);
-		vector<pair<string, int>> mp;
-		mp = users_chats[contacts_found[ch - 1]];
-		vector<pair<string, int>>::iterator it = mp.begin();
-		mp.emplace(it, make_pair(allgroups[chatindex].ID, chatindex));
-		users_chats[contacts_found[ch - 1]] = mp;
-	}
+		cout << "Sorry You need Admin permission"<<endl;
+	
 }
- 
-void User::CreateGroup(vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats)
-{
-	string str;
-	GroupChat New_group;
-	ostringstream id_to_string;
-	char dis;
-	int index = 0;
-	bool created = false;
- 
-	New_group.ID = "ID";
-	cout << "Enter the group name :";
-	cin.ignore();
-	getline(cin, New_group.groupname);
-	New_group.admin = Mob_num;
-	srand(time(NULL));
-	id_to_string << rand();
-	New_group.ID += id_to_string.str();
- 
-	vector<GroupChat>::iterator it = allgroups.begin();
-	for (it; it != allgroups.end(); it++, index++)
-	{
-		if (it->admin == "" && it->ID == "" && it->groupname == "")
-		{
-			it->admin = Mob_num;
-			it->groupname = New_group.groupname;
-			it->ID = New_group.ID;
-			created = true;
-			break;
-		}
-	}
-	if (!created)
-		allgroups.push_back(New_group);
-	do
-	{
-		if (created)
-		{
-			add_participants(index, allgroups, users_chats);
-		}
-		else
-		{
-			add_participants(allgroups.size() - 1, allgroups, users_chats);
-		}
-		cout << "Do you want to add another one?!(y,n)" << endl;
-		cin >> dis;
-	} while (dis == 'y' || dis == 'Y');
- 
- 
-	vector<pair<string, int>>map_index = users_chats[allgroups[index].admin];
-	vector<pair<string, int>>::iterator itx = map_index.begin();
-	map_index.emplace(itx, make_pair(allgroups[index].ID, index));
-	users_chats[allgroups[index].admin] = map_index;
- 
-}
- 
-void User::AddContact(unordered_map<string, vector<pair<string, string>>>& users_contacts, vector<PrivateChat>& allprvchats,
-	unordered_map<string, vector<pair<string, int>>>& users_chats, vector<User>& allusers)
-{
-	string number, name;
-	bool created = false;
-	int index = 0;
-	bool exist = false, saved = false;
-	cin.ignore();
-	cout << "Enter contact name : ";
-	getline(cin, name);
-	cout << "Enter contact Number : ";
-	getline(cin, number);
- 
-	vector<User>::iterator itu = allusers.begin();
-	for (itu; itu != allusers.end(); itu++)
-	{
-		if (itu->Mob_num == number)
-		{
-			exist = true;
-			break;
-		}
-	}
-	vector<pair<string, string>>::iterator contacts = contact_list.begin();
-	for (contacts; contacts != contact_list.end(); contacts++)
-	{
-		if (contacts->first == number)
-		{
-			saved = true;
-			break;
-		}
-	}
-	if (!exist)
-	{
-		cout << "User doesn't exist,User must be registered to be added,please try again." << endl;
-		cout << "1-Back" << endl << "2-Retry." << endl;
-		int c;
-		cin >> c;
-		if (c == 2)
-		{
-		  AddContact(users_contacts, allprvchats, users_chats, allusers);
-		}
-	}
-	else if (saved)
-	{
-		cout << "contact already saved." << endl;
-		cout << "1-Back" << endl << "2-Retry." << endl;
-		int c;
-		cin >> c;
-		if (c == 2)
-		{
-			AddContact(users_contacts, allprvchats, users_chats, allusers);
+
+void Chat::removemember(string user_name, string member_name) {
+	if (user_name == admin) {
+		for (string it : members) {
+			if (member_name == it) {
+				it.erase();
+				NumOfMembers--;
+			}
 		}
 	}
 	else
-	{
-		contact_list.push_back(make_pair(number, name));
-		sort(contact_list.begin(), contact_list.end(), [](auto& e1, auto& e2) {
-			return e1.second < e2.second;
-			});
-		vector<pair<string, string>>mp = users_contacts[Mob_num];
-		mp.push_back(make_pair(number, name));
-		users_contacts[Mob_num] = mp;
-		vector<PrivateChat>::iterator it = allprvchats.begin();
-		for (it; it != allprvchats.end(); it++, index++)
-		{
-			if (it->num1 == "" && it->num2 == "")
-			{
-				it->num1 = Mob_num;
-				it->num2 = number;
-				created = true;
-				break;
-			}
-		}
-		if (created)
-		{
-			vector<pair<string, int>>mp_index = users_chats[Mob_num];
-			mp_index.push_back(make_pair(number, index));
-		}
-		else
-		{
-			PrivateChat newchat(Mob_num, number);
-			allprvchats.push_back(newchat);
-			vector<pair<string, int>>mp_index = users_chats[Mob_num];
-			mp_index.push_back(make_pair(number, allprvchats.size() - 1));
-			users_chats[Mob_num] = mp_index;
-		}
-	cout << "Contact added succesfully." << endl;
-	}
+		cout << "Sorry You need Admin permission" << endl;
+
 }
- 
-void User::Search(vector<GroupChat>& allgroups, unordered_map<string, vector<pair<string, int>>>& users_chats,
-	unordered_map<string, vector<pair<string, string>>>& users_contacts, vector<PrivateChat>& allprvchats)
-{
-	string name;
-	int cnt = 1;
-	cout << endl << "Enter the name you want to search for : ";
-	cin.ignore();
-	getline(cin, name);
-	cout << endl;
-	vector<string>numbers;
-	vector<pair<string, string>>::iterator it;
-	vector<GroupChat>::iterator itt;
-	for (it = contact_list.begin(); it != contact_list.end(); it++) {
-		if (it->second == name)
-		{
-			cout << cnt << "." << it->second << "          " << it->first << endl;
-			numbers.push_back(it->first);
-			cnt++;
-		}
-	}
-	for (itt = allgroups.begin(); itt != allgroups.end(); itt++) {
-		if (name == itt->groupname)
-		{
-			cout << cnt << "." << itt->groupname << "          " << itt->ID << endl;
-			numbers.push_back(itt->ID);
-			cnt++;
-		}
-	}
-	cout << endl;
-	if (numbers.size() == 0)
-	{
-		cout << "No contact or group found with given name." << endl;
-		system("pause");
-	}
-	else
-		openchat(numbers, users_chats, users_contacts, allprvchats, allgroups);
- 
+
+
+//Messages functions:
+messages::messages() {
+	read = false;
 }
- 
-void User::openchat(vector<string>numbers, unordered_map<string, vector<pair<string, int>>>& users_chats, unordered_map<string,
-	vector<pair<string, string>>>& users_contacts, vector<PrivateChat>& allprvchats, vector<GroupChat>& allgroups)
-{
-	int dis, chat_index = 0, choice;
-	Messages mssg;
-	string theone, type, owner;
-	queue<Messages>temp;
-	char readsign = 251;
-	bool msg_sent = false;
- 
-	cout << "Chose one to talk to : ";
-	cout << endl;
-	cin >> dis;
-	system("cls");
-	while (true)
-	{
-		if (cin.fail() || dis > numbers.size() || dis <= 0)
-		{
-			cout << "Wrong entry please try again" << endl << endl;
-			cin >> dis;
-			cin.ignore();
-		}
-		else
-		{
-			break;
-		}
-	}
-	dis -= 1;
-	theone = numbers[dis];
-	vector<pair<string, int>>chat_mp = users_chats[Mob_num];
-	vector<pair<string, int>>::iterator it;
-	for (it = chat_mp.begin(); it != chat_mp.end(); it++)
-	{
-		if (it->first == theone)
-		{
-			chat_index = it->second;
-			break;
-		}
-	}
-	if (theone.find("ID") == -1)      //private chat
-	{
-		type = "private";
-		cout << Number_to_Name(theone) << endl << "______________________" << endl ;
-		for (int i = 0; !allprvchats[chat_index].chathistory.empty(); i++)
-		{
-			mssg = allprvchats[chat_index].chathistory.front();
-			owner = Number_to_Name(mssg.owner);
-			cout << owner << " : " << mssg.mssg << " ";
-			if (mssg.read == true)
-				cout << readsign << readsign << endl;
-			else
-				cout << readsign << endl;
-			mssg.read = true;
-			temp.push(mssg);
-			allprvchats[chat_index].chathistory.pop();
-		}
-		while (true)
-		{
-			cout << "________________________" << endl << "1.send message" << endl << "2.back" << endl << endl << "Enter your choice : ";
-			cin >> choice;
-			while (true)
-			{
-				if (cin.fail() || choice > 2 || choice < 1)
-				{
-					cout << "Wrong entry please try again" << endl << endl;
-					cin >> dis;
-				}
-				else
-				{
-					break;
-				}
-			}
-			if (choice == 1)
-			{
-				msg_sent = true;
-				send_mssg(temp, chat_index, type, allprvchats, allgroups, users_contacts, users_chats,theone);
-			}
-			else if (choice == 2)
-			{
-				if (msg_sent)
-					break;
-				else
-				{
-					allprvchats[chat_index].chathistory = temp;
-					break;
-				}
- 
-			}
-		}
+
+
+*************************************************************************************
+//File Source.cpp
+
+#include "Containers.cpp"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
+
+using namespace std;
+	
+
+void programstart();
+void retrive();
+void login();
+void regist();
+void User_start_Menu();
+
+vector<Chat> allchats;
+vector<User> allusers;
+string us, pass,contact;
+User Current_User;
+
+void main() {
+	bool close = false;
+	cout << "Welcome to WeshApp" << endl;
+	while (true) {
+		programstart(); //gwa while system("cls");-> tms7 al console
+		Current_User.DisplayAllChats();
+		User_start_Menu();
+
+	/*ifstream user;
+	user.open("Users.txt");
+	if (user.fail()) {
+		cout << "Error";
 	}
 	else {
-		type = "group";
-		cout << allgroups[chat_index].groupname << endl << "______________________" << endl;
-		for (int i = 0; !allgroups[chat_index].chathistory.empty(); i++)
-		{
-			mssg = allgroups[chat_index].chathistory.front();
-			owner = Number_to_Name(mssg.owner);
-			cout << owner << " : " << mssg.mssg << " ";
-			if (mssg.read == true)
-				cout << readsign << readsign << endl;
-			else
-				cout << readsign << endl;
-			mssg.read = true;
-			temp.push(mssg);
-			allgroups[chat_index].chathistory.pop();
- 
+		for (User it : allusers ) {
+			User temp(NULL,NULL,NULL);
+			user >> temp.name;
+			user >> temp.pass;
+			user >> temp.contact;
+			allusers.push_back(temp);
 		}
-		if (allgroups[chat_index].admin == Mob_num)
-		{
-			while (true)
-			{
-				cout << "________________________" << endl << "1.send message" << endl << "2.Edit" << endl << "3.View members" << endl << "4.Delete group" << endl << "5.Back" << endl << endl;
-				cin >> choice;
-				while (true)
-				{
-					if (cin.fail() || choice > 5 || choice < 1)
-					{
-						cout << "Wrong entry please try again" << endl;
-						cin >> dis;
-					}
-					else
-					{
-						break;
-					}
-				}
-				if (choice == 1)
-				{
-					msg_sent = true;
-					send_mssg(temp, chat_index, type, allprvchats, allgroups, users_contacts, users_chats,theone);
-				}
-				else if (choice == 2)
-				{
-					editgroup(chat_index, allgroups, users_chats);
-				}
-				else if (choice == 3)
-				{
-					view_members(chat_index, allgroups);
-				}
-				else if (choice == 4)
-				{
-					deletegroup(chat_index, allgroups, users_chats);
-					break;
-				}
-				else
-				{
-					if (msg_sent)
-						break;
-					else
-					{
-						allgroups[chat_index].chathistory = temp;
-						break;
-					}
-				}
-			}
-		}
-		else
-		{
-			while (true)
-			{
-				cout << "1.send message" << endl << "2.View members" << endl << "3.back" << endl;
-				cin >> choice;
-				while (true)
-				{
-					if (cin.fail() || choice > 3 || choice < 1)
-					{
-						cout << "Wrong entry please try again" << endl;
-						cin >> dis;
-					}
-					else
-					{
-						break;
-					}
-				}
-				if (choice == 1)
-				{
-					msg_sent = true;
-					send_mssg(temp, chat_index, type, allprvchats, allgroups, users_contacts, users_chats, theone);
-				}
-				else if (choice == 2)
-				{
-					view_members(chat_index, allgroups);
-				}
-				else
-				{
-					if (msg_sent)
-						break;
-					else
-					{
-						allgroups[chat_index].chathistory = temp;
-						break;
-					}
-				}
- 
-			}
-		}
+		user.close();
+	}*/
+
+
 	}
 }
- 
-void User::send_mssg(queue<Messages>temp, int chatindex, string type, vector<PrivateChat>& allprvchats, vector<GroupChat>& allgroups,
-	unordered_map<string, vector<pair<string, string>>>& users_contacts,
-	unordered_map<string, vector<pair<string, int>>>& users_chats, string reciver)
-{
-	Messages Single_mssg;
-	bool new_mssg = true;
-	int cnt = 0;
- 
-	//send a new message
-	cin.ignore();
-	cout << "Enter your messsage(s) :                    Enter ## to go back." << endl << endl;
-	while (true)
-	{
-		getline(cin, Single_mssg.mssg);
-		if (Single_mssg.mssg == "##")
-		{
-			if (cnt == 0)
-			{
-				new_mssg = false;
-			}
-			break;
-		}
-		else
-		{
-			Single_mssg.owner = Mob_num;
-			Single_mssg.read = false;
-			temp.push(Single_mssg);
-			cnt++;
-		}
+
+void programstart() {
+	int choice;
+	cout << "1-Login		2-Register		3-Exit===>>Entry: ";
+	cin >> choice;
+	if (choice == 1) {
+		login();
 	}
-	if (type == "private")
-	{
-		allprvchats[chatindex].chathistory = temp;
+	else if(choice == 2) {
+		regist();
 	}
-	else
-	{
-		allgroups[chatindex].chathistory = temp;
+	else if(choice == 3) {
+		exit(0);
 	}
- 
-	//order the chat list
- 
-	if (new_mssg)
-	{
-		vector<pair<string, int>>map_index = users_chats[Mob_num];
-		vector<pair<string, int>>::iterator it = map_index.begin();
-		pair<string, int>order;
-		string rec = reciver;
- 
-		if (type == "private")
-		{
-			if (map_index.empty())
-			{
-				order = make_pair(rec, chatindex);
-			}
-			else
-			{
-				for (it; it != map_index.end(); it++)
-				{
-					if (it->first == rec && it->second == chatindex)
-					{
-						order = make_pair(it->first, it->second);
-						map_index.erase(it);
-						break;
+	else {
+		cout << "Wrong Entry! Try Again";
+	}
+}
+
+void login() {
+	int choice;
+	bool logging = true;
+	while (logging == true) {
+		bool fail = true;
+		cout << "Enter Username: ";
+		cin >> us;
+		for (User t : allusers) {
+			if (us == t.username) {
+				bool done = false;
+				while (done==false){
+					cout << "Enter Password: ";
+					cin >> pass;
+					if (pass == t.password) {
+						Current_User = t;
+						retrive();  //Current_User.retrive
+						fail = false;
+						done = true;
 					}
-				}
-			}
-			it = map_index.begin();
-			map_index.emplace(it, order);
-			users_chats[Mob_num] = map_index;
- 
-			map_index = users_chats[rec];
-			it = map_index.begin();
- 
-			if (map_index.empty())
-			{
-				order = make_pair(Mob_num, chatindex);
-			}
-			else
-			{
-				for (it; it != map_index.end(); it++)
-				{
-					if (it->first.find("ID") == -1 && it->second == chatindex)
-					{
-						order = make_pair(it->first, it->second);
-						map_index.erase(it);
-						break;
-					}
-				}
-			}
-			it = map_index.begin();
-			map_index.emplace(it, order);
-			users_chats[rec] = map_index;
-		}
-		else
-		{
-			if (map_index.empty())
-			{
-				order = make_pair(rec, chatindex);
-			}
-			else
-			{
-				for (it; it != map_index.end(); it++)
-				{
-					if (it->first.find("ID") != -1 && it->second == chatindex)
-					{
-						order = make_pair(it->first, it->second);
-						map_index.erase(it);
-						break;
-					}
-				}
-			}
-			it = map_index.begin();
-			map_index.emplace(it, order);
-			users_chats[Mob_num] = map_index;
- 
- 
-			for (int i = 0; i < allgroups[chatindex].count_members(); i++)
-			{
-				map_index = users_chats[allgroups[chatindex].members[i]];
-				it = map_index.begin();
-				if (map_index.empty())
-				{
-					order = make_pair(rec, chatindex);
-				}
-				else
-				{
-					for (it; it != map_index.end(); it++)
-					{
-						if (it->first.find("ID") != -1 && it->second == chatindex)
-						{
-							order = make_pair(it->first, it->second);
-							map_index.erase(it);
-							break;
+					else{
+						cout << "Incorrect Password! Please Try Again...Press 1 to Exit login";
+						cin >> choice;
+						if (choice == 1) {
+							return;
 						}
+						else
+							continue;
 					}
 				}
-				it = map_index.begin();
-				map_index.emplace(it, order);
-				users_chats[allgroups[chatindex].members[i]] = map_index;
+				
 			}
 		}
-	}
- 
-}
- 
-int GroupChat::count_members()
-{
-	return members.size();
-}
- 
-string User::Number_to_Name(string number)
-{
-	string name = number;
-	if (number == Mob_num)
-		return username;
-	else
-	{
-		for (int i = 0; i < contact_list.size(); i++)
-		{
-			if (contact_list[i].first == number)
-			{
-				name = contact_list[i].second;
-				break;
+		if (fail == true) {
+			cout << "Username Does not Exist! Please Try Again...Press 1 to Exit login";
+			cin >> choice;
+			if (choice == 1) {
+				return;
 			}
+			else
+				continue;
 		}
-		return name;
-	}
-}
- 
-void User::view_members(int chatindex, vector<GroupChat>& allgroups)
-{
-	string name;
-	cout << "Members of this group are : " << endl;
-	name = Number_to_Name(allgroups[chatindex].admin);
-	cout << "1." << name << ".           (Admin)." << endl;
-	for (int i = 0; i < allgroups[chatindex].members.size(); i++)
-	{
-		name = Number_to_Name(allgroups[chatindex].members[i]);
-		cout << i + 2 << "." << name << "." << endl;
-	}
-	cout << endl;
-}
- 
-void User::deletegroup(int chatindex, vector<GroupChat>& allgroups,
-	unordered_map<string, vector<pair<string, int>>>& users_chats)
-{
-	vector<pair<string, int>> vec;
-	vector<pair<string, int>>::iterator it;
-	for (int i = 0; i < allgroups[chatindex].members.size(); i++)
-	{
-		vec = users_chats[allgroups[chatindex].members[i]];
-		it = vec.begin();
-		for (it; it != vec.end(); it++)
-		{
-			if (it->first.find("ID") != -1 && it->second == chatindex)
-			{
-				vec.erase(it);
-				break;
-			}
-		}
-		users_chats[allgroups[chatindex].members[i]] = vec;
- 
-	}
-	vec = users_chats[allgroups[chatindex].admin];
-	it = vec.begin();
-	for (it; it != vec.end(); it++)
-	{
-		if (it->first.find("ID") != -1 && it->second == chatindex)
-		{
-			vec.erase(it);
+		else if(fail==false)
 			break;
+	}
+
+}
+
+void regist() {
+
+	cout << "Enter your new Username: ";
+	cin >> us;
+	cout << "Enter your Number(Contact): ";
+	cin >> contact;
+	for (User it : allusers) {
+		if (it.username==us) {
+			cout << "Username already used" << endl;
+			regist();
+		}
+		if(it.Mob_no==contact){
+			cout << "Contact already used" << endl;
+			regist();
 		}
 	}
-	users_chats[allgroups[chatindex].admin] = vec;
- 
-	allgroups[chatindex].admin = "";
-	allgroups[chatindex].groupname = "";
-	allgroups[chatindex].ID = "";
-	for (int i = 0; i < allgroups[chatindex].count_members(); i++)
-	{
-		allgroups[chatindex].members[i] = "";
-	}
-	while (!allgroups[chatindex].chathistory.empty())
-	{
-		allgroups[chatindex].chathistory.pop();
-	}
- 
+	cout << "Enter Your Password: ";
+	cin >> pass;
+	User newcomer(us,pass,contact);
+	allusers.push_back(newcomer);
 }
- 
-void User::view_contacts()
-{
-	cout << "Name" << "        " << "Number" << endl << "________________________" << endl ;
-	for (int i = 0; i < contact_list.size(); i++)
-	{
-		cout << contact_list[i].second << "        " << contact_list[i].first << endl;
+
+void User_start_Menu() {
+	int choice;
+	while (true) {
+		cout << "1-Chat with		2-Create Group		3-Show All Contacts		4-Logout ===>> Entry: ";
+		cin >> choice;
+		if (choice == 1) {
+			string entry;
+			cout << "Name:";
+			cin >> entry;
+			Current_User.OpenChat(Current_User.Match(entry));
+		}
+		else if (choice == 2) {
+
+		}
+		else if (choice == 3) {
+			Current_User.mycontacts();
+		}
+		else if (choice == 4) {
+			User m;
+			Current_User = m;
+		}
 	}
+
 }
